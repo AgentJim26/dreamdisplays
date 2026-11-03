@@ -31,6 +31,9 @@ enum class HwAccelBackend(val ffmpegName: String?, val hwOutputFormat: String?, 
          * decode is worse than a stream that decodes a bit slower.
          */
         fun detectDefault(): HwAccelBackend = when {
+            // Debug override for macOS black-screen on live HLS: allow forcing
+            // software decode via -Ddreamdisplays.forceSwDecode=true.
+            OsInfo.isMac && System.getProperty("dreamdisplays.forceSwDecode") == "true" -> NONE
             OsInfo.isMac -> VIDEOTOOLBOX
             OsInfo.isWindows -> D3D11VA
             OsInfo.isLinux -> VAAPI

@@ -183,6 +183,7 @@ class YtDlpClientRace(private val cookies: YtCookieManager) {
                     err.trim().take(200),
                 )
             }
+            logger.warn("yt-dlp exited {} for {}: {}.", process.exitValue(), videoUrl, err.trim().take(300))
             throw IOException("Exited with code ${process.exitValue()}: ${err.trim()}.")
         }
         return YtDlpOutputParser.parseFormats(stdout.toString())

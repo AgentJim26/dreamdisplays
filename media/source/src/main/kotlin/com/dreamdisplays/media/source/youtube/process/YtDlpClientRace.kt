@@ -1,6 +1,7 @@
 package com.dreamdisplays.media.source.youtube.process
 
 import com.dreamdisplays.media.runtime.system.Processes
+import com.dreamdisplays.media.source.youtube.binary.JsRuntimeProvider
 import com.dreamdisplays.media.source.youtube.binary.YtDlpBinary
 import com.dreamdisplays.media.source.youtube.binary.YtDlpOutputParser
 import com.dreamdisplays.media.source.youtube.cookie.YtCookieManager
@@ -126,6 +127,8 @@ class YtDlpClientRace(private val cookies: YtCookieManager) {
         val cmd = ArrayList<String>()
         cmd.addAll(YtDlpBinary.resolveCommand())
         val tempCookies = cookies.appendArgs(cmd)
+        runCatching { cmd.addAll(JsRuntimeProvider.args()) }
+            .onFailure { e -> logger.debug("JS runtime args skipped: {}", e.message) }
 
         val hasCookieArg = cmd.any { it == "--cookies" || it == "--cookies-from-browser" }
         if (!hasCookieArg && client != null) {
@@ -171,7 +174,16 @@ class YtDlpClientRace(private val cookies: YtCookieManager) {
             if (tempCookies != null) runCatching { Files.deleteIfExists(tempCookies) }
         }
         if (process.exitValue() != 0) {
-            throw IOException("Exited with code ${process.exitValue()}: ${stderr.toString().trim()}.")
+            val err = stderr.toString()
+            if ("JavaScript runtime" in err || "js-runtimes" in err || "deno is enabled" in err) {
+                logger.warn(
+                    "yt-dlp needs a JavaScript runtime for this video ({}). " +
+                        "Install Deno (https://deno.land) or Node.js and restart, " +
+                        "or set -Ddreamdisplays.jsruntime=/path/to/deno.",
+                    err.trim().take(200),
+                )
+            }
+            throw IOException("Exited with code ${process.exitValue()}: ${err.trim()}.")
         }
         return YtDlpOutputParser.parseFormats(stdout.toString())
     }

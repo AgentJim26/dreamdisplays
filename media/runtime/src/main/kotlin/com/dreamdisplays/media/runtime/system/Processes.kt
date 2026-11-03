@@ -75,6 +75,12 @@ object Processes {
     /** Removes the macOS quarantine flag from a downloaded [binary] so Gatekeeper doesn't block it. */
     fun removeMacQuarantine(binary: Path) {
         if (!OsInfo.isMac) return
+        // `xattr -c` clears all attrs (never fails when the attr is absent);
+        // keep the old `-d` form as a fallback for very old systems.
+        runCatching {
+            ProcessBuilder("xattr", "-c", binary.toString())
+                .redirectErrorStream(true).start().waitFor(5, TimeUnit.SECONDS)
+        }
         runCatching {
             ProcessBuilder("xattr", "-d", "com.apple.quarantine", binary.toString())
                 .redirectErrorStream(true).start().waitFor(5, TimeUnit.SECONDS)

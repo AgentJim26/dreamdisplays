@@ -36,11 +36,13 @@ object YtDlpBinary {
     private const val DOWNLOAD_BASE = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/"
     private const val ZIPAPP_ASSET = "yt-dlp"
     private const val ZIPAPP_NAME = "yt-dlp.pyz"
-    private const val MIN_PYTHON_MINOR = 9
+    private const val MIN_PYTHON_MINOR = 10
 
     private val PYTHON_CANDIDATES: Array<String> =
         if (OsInfo.isWindows) arrayOf("python", "python3", "py")
-        else arrayOf("python3", "/opt/homebrew/bin/python3", "/usr/local/bin/python3", "/usr/bin/python3", "python")
+        // Absolute Homebrew paths first: GUI-launched Minecraft has a minimal PATH where
+        // bare `python3` resolves to Xcode CLT Python 3.9, which cannot run current yt-dlp.
+        else arrayOf("/opt/homebrew/bin/python3", "/usr/local/bin/python3", "/usr/bin/python3", "python3", "python")
 
     private const val BINARY_REFRESH_MS: Long = 1L * 24L * 60L * 60L * 1_000L
 

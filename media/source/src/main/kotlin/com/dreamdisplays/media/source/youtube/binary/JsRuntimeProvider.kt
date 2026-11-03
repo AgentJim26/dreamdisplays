@@ -89,6 +89,11 @@ object JsRuntimeProvider {
     }
 
     private fun findOnPath(exe: String): String? {
+        // GUI-launched Minecraft (Prism Launcher) often has a minimal PATH that
+        // misses Homebrew/nvm/bun locations, so check well-known absolute paths too.
+        for (abs in wellKnownPaths(exe)) {
+            if (File(abs).canExecute() && probeVersion(abs)) return abs
+        }
         val names = if (OsInfo.isWindows && !exe.endsWith(".exe")) listOf("$exe.exe", exe) else listOf(exe)
         for (name in names) {
             runCatching {
@@ -107,6 +112,37 @@ object JsRuntimeProvider {
         }
         // Last resort: direct probe (relies on PATH lookup by ProcessBuilder).
         return if (probeVersion(exe)) exe else null
+    }
+
+    private fun wellKnownPaths(exe: String): List<String> {
+        val home = System.getProperty("user.home", "")
+        val base = when (exe) {
+            "deno" -> listOf(
+                "/opt/homebrew/bin/deno",
+                "/usr/local/bin/deno",
+                "$home/.deno/bin/deno",
+            )
+            "node" -> listOf(
+                "/opt/homebrew/bin/node",
+                "/usr/local/bin/node",
+            )
+            "bun" -> listOf(
+                "$home/.bun/bin/bun",
+                "/opt/homebrew/bin/bun",
+                "/usr/local/bin/bun",
+            )
+            else -> emptyList()
+        }
+        val out = ArrayList(base)
+        // nvm layouts: ~/.nvm/versions/node/<ver>/bin/node
+        if (exe == "node" && home.isNotEmpty()) {
+            runCatching {
+                File(home, ".nvm/versions/node").listFiles()
+                    ?.sortedByDescending { it.name }
+                    ?.forEach { out.add(File(it, "bin/node").absolutePath) }
+            }
+        }
+        return out
     }
 
     private fun probeVersion(exe: String): Boolean {
